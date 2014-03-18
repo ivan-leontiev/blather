@@ -12,14 +12,24 @@ import gobject
 this_dir = os.path.dirname(os.path.abspath(__file__))
 
 
+def init_pipeline(pipeline, lf, df, result):
+    # get the Auto Speech Recognition piece
+    asr = pipeline.get_by_name('asr')
+    asr.connect('result', result)
+    asr.set_property('lm', lf)
+    asr.set_property('dict', df)
+    asr.set_property('configured', True)
+
+
 class Recognizer(gobject.GObject):
     __gsignals__ = {
-        'finished': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_STRING,))
+        'finished': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_STRING, gobject.TYPE_BOOLEAN))
     }
 
-    def __init__(self, language_file, dictionary_file, src=None):
+    def __init__(self, lang_file, dic_file, sys_l, sys_d, src=None):
         gobject.GObject.__init__(self)
-        self.commands = {}
+        self.__active = False
+        # self.commands = {}
         if src:
             audio_src = 'alsasrc device="%s"' % (src)
         else:
@@ -27,18 +37,31 @@ class Recognizer(gobject.GObject):
 
         # build the pipeline
         cmd = audio_src + ' ! audioconvert ! audioresample ! vader name=vad ! pocketsphinx name=asr ! appsink sync=false'
+
         self.pipeline = gst.parse_launch(cmd)
-        # get the Auto Speech Recognition piece
-        asr = self.pipeline.get_by_name('asr')
-        asr.connect('result', self.result)
-        asr.set_property('lm', language_file)
-        asr.set_property('dict', dictionary_file)
-        asr.set_property('configured', True)
+        self.sys_pipeline = gst.parse_launch(cmd)
+
+        init_pipeline(self.pipeline, lang_file, dic_file, self.result)
+        init_pipeline(self.sys_pipeline, sys_l, sys_d, self.result)
+
         # get the Voice Activity DEtectoR
         self.vad = self.pipeline.get_by_name('vad')
         self.vad.set_property('auto-threshold', True)
 
+        self.sys_vad = self.sys_pipeline.get_by_name('vad')
+        self.sys_vad.set_property('auto-threshold', True)
+
+
     def listen(self):
+        self.__active = False
+        self.vad.set_property('silent', True)
+        self.pipeline.set_state(gst.STATE_PAUSED)
+        self.sys_pipeline.set_state(gst.STATE_PLAYING)
+
+    def activate_listen(self):
+        self.__active = True
+        self.sys_vad.set_property('silent', True)
+        self.sys_pipeline.set_state(gst.STATE_PAUSED)
         self.pipeline.set_state(gst.STATE_PLAYING)
 
     def pause(self):
@@ -47,4 +70,4 @@ class Recognizer(gobject.GObject):
 
     def result(self, asr, text, uttid):
         # emit finished
-        self.emit("finished", text)
+        self.emit("finished", text, self.__active)

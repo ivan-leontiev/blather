@@ -17,12 +17,11 @@ from optparse import OptionParser
 
 
 __config_options = {'awake_command', 'debug'}
-
-# where are the files?
+__sys_voice_cmds = {'awake_command'}
 
 
 def set_config(dir="~/.config/blather"):
-    global conf_dir, lang_dir, command_file, strings_file, history_file, lang_file, dic_file
+    global conf_dir, lang_dir, command_file, strings_file, history_file, lang_file, dic_file, sys_l, sys_d
 
     conf_dir = os.path.expanduser(dir)
     lang_dir = os.path.join(conf_dir, "language")
@@ -34,6 +33,8 @@ def set_config(dir="~/.config/blather"):
     history_file = os.path.join(conf_dir, "blather.history")
     lang_file = os.path.join(lang_dir, 'lm')
     dic_file = os.path.join(lang_dir, 'dic')
+    sys_l = os.path.join(lang_dir, 'sys.lm')
+    sys_d = os.path.join(lang_dir, 'sys.dic')
 
 set_config()
 
@@ -50,25 +51,25 @@ class Blather:
         ui_continuous_listen = False
         self.continuous_listen = False
         self.read_commands()
-        self.recognizer = Recognizer(lang_file, dic_file, opts.microphone)
+        self.recognizer = Recognizer(lang_file, dic_file, sys_l, sys_d, opts.microphone)
         self.recognizer.connect('finished', self.recognizer_finished)
 
-        if opts.interface is not None:
-            if opts.interface == "q":
-                # import the ui from qt
-                from QtUI import UI
-            elif opts.interface == "g":
-                from GtkUI import UI
-            else:
-                print "no GUI defined"
-                sys.exit()
+        # if opts.interface is not None:
+        #     if opts.interface == "q":
+        #         # import the ui from qt
+        #         from QtUI import UI
+        #     elif opts.interface == "g":
+        #         from GtkUI import UI
+        #     else:
+        #         print "no GUI defined"
+        #         sys.exit()
 
-            self.ui = UI(args, opts.continuous)
-            self.ui.connect("command", self.process_command)
-            # can we load the icon resource?
-            icon = self.load_resource("icon.png")
-            if icon:
-                self.ui.set_icon(icon)
+        #     self.ui = UI(args, opts.continuous)
+        #     self.ui.connect("command", self.process_command)
+        #     # can we load the icon resource?
+        #     icon = self.load_resource("icon.png")
+        #     if icon:
+        #         self.ui.set_icon(icon)
 
         if self.opts.history:
             self.history = []
@@ -76,6 +77,7 @@ class Blather:
     def read_commands(self):
         sysd, comd = parse_config()
         self.commands = comd
+        self.sys_commands = sysd
 
     def log_history(self, text):
         if self.opts.history:
@@ -91,23 +93,31 @@ class Blather:
             # close the  file
             hfile.close()
 
-    def recognizer_finished(self, recognizer, text):
+    def recognizer_finished(self, recognizer, text, state):
         t = text.lower()
         # is there a matching command?
-        if self.commands.has_key(t):
-            cmd = self.commands[t]
-            print cmd
-            subprocess.call(cmd, shell=True)
-            self.log_history(text)
-        else:
-            print "no matching command"
-        # if there is a UI and we are not continuous listen
-        if self.ui:
-            if not self.continuous_listen:
-                # stop listening
-                self.recognizer.pause()
+        if state:
+            if t in self.commands:
+                cmd = self.commands[t]
+                print 'command: ' + t
+                subprocess.call(cmd, shell=True)
+                self.log_history(text)
+                self.recognizer.listen()
+            else:
+                print "command: no matching command"
+
+            # if there is a UI and we are not continuous listen
+            # if self.ui:
+            #     if not self.continuous_listen:
+            # stop listening
+            #         self.recognizer.pause()
             # let the UI know that there is a finish
-            self.ui.finished(t)
+            #     self.ui.finished(t)
+        else:
+            if t in self.sys_commands:
+                print 'Listening...'
+                subprocess.call(self.sys_commands[t], shell=True)
+                self.recognizer.activate_listen()
 
     def run(self):
         if self.ui:
@@ -158,7 +168,9 @@ def parse_config():
             key, value = line[1:].split('=', 1)
             key, value = key.strip(), value.strip()
             if key in __config_options:
-                sdict[key] = value
+                if key in __sys_voice_cmds:
+                    k, v = value.split(':', 1)
+                    sdict[k.strip()] = v.strip()
         else:
             key, value = line.split(":", 1)
             ndict[key.strip()] = value.strip()
@@ -169,7 +181,7 @@ def parse_config():
 def update_voice_commands():
     sd, nd = parse_config()
     load_lm('\n'.join(nd), False)
-    # load_lm('n'.join(sd), True)
+    load_lm('\n'.join(sd), True)
 
 
 def load_lm(content, syst):
@@ -187,8 +199,8 @@ def load_lm(content, syst):
 
     if syst:
         pass
-        # urllib.urlretrieve(headers['Location'] + cid + '.lm', sys_l)
-        # urllib.urlretrieve(headers['Location'] + cid + '.dic', sys_d)
+        urllib.urlretrieve(headers['Location'] + cid + '.lm', sys_l)
+        urllib.urlretrieve(headers['Location'] + cid + '.dic', sys_d)
     else:
         urllib.urlretrieve(headers['Location'] + cid + '.lm', lang_file)
         urllib.urlretrieve(headers['Location'] + cid + '.dic', dic_file)
@@ -226,7 +238,7 @@ if __name__ == "__main__":
 
     if not functools.reduce(bool.__and__, map(os.path.exists,
                                               [lang_file, dic_file])):
-        print 'You should call with --update firstly'
+        print 'You should call blather with --update option firstly'
         exit(1)
 
     # make our blather object
