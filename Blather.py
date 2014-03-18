@@ -12,13 +12,18 @@ from optparse import OptionParser
 
 
 #where are the files?
-conf_dir = os.path.expanduser("~/.config/blather")
-lang_dir = os.path.join(conf_dir, "language")
-command_file = os.path.join(conf_dir, "commands.conf")
-strings_file = os.path.join(conf_dir, "sentences.corpus")
-history_file = os.path.join(conf_dir, "blather.history")
-lang_file = os.path.join(lang_dir,'lm')
-dic_file = os.path.join(lang_dir,'dic')
+def set_config(dir="~/.config/blather"):
+    global conf_dir, lang_dir, command_file, strings_file, history_file, lang_file, dic_file
+
+    conf_dir = os.path.expanduser(dir)
+    lang_dir = os.path.join(conf_dir, "language")
+    command_file = os.path.join(conf_dir, "commands.conf")
+    strings_file = os.path.join(conf_dir, "sentences.corpus")
+    history_file = os.path.join(conf_dir, "blather.history")
+    lang_file = os.path.join(lang_dir,'lm')
+    dic_file = os.path.join(lang_dir,'dic')
+
+set_config()
 #make the lang_dir if it doesn't exist
 if not os.path.exists(lang_dir):
 	os.makedirs(lang_dir)
@@ -26,6 +31,9 @@ if not os.path.exists(lang_dir):
 class Blather:
 	def __init__(self, opts):
 		#import the recognizer so Gst doesn't clobber our -h
+                if opts.config is not None:
+                    set_config(opts.config)
+
 		from Recognizer import Recognizer
 		self.ui = None
 		#keep track of the opts
@@ -146,6 +154,9 @@ class Blather:
 
 if __name__ == "__main__":
 	parser = OptionParser()
+	parser.add_option("-d", "--config-dir",  type="string", dest="config",
+		action='store',
+		help="path to config dir")
 	parser.add_option("-i", "--interface",  type="string", dest="interface",
 		action='store',
 		help="Interface to use (if any). 'q' for Qt, 'g' for GTK")
@@ -155,7 +166,7 @@ if __name__ == "__main__":
 	parser.add_option("-H", "--history", type="int",
 		action="store", dest="history",
 		help="number of commands to store in history file")
-	parser.add_option("-m", "--microphone", type="int",
+	parser.add_option("-m", "--microphone", type="string",
 		action="store", dest="microphone", default=None,
 		help="Audio input card to use (if other than system default)")
 
