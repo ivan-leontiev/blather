@@ -1,6 +1,6 @@
 #!/bin/bash
 
-blatherdir=~/.config/blather
+blatherdir=$(realpath $1)  # ~/.config/blather
 sentences=$blatherdir/sentences.corpus
 sourcefile=$blatherdir/commands.conf
 langdir=$blatherdir/language
@@ -8,6 +8,10 @@ tempfile=$blatherdir/url.txt
 lmtoolurl=http://www.speech.cs.cmu.edu/cgi-bin/tools/lmtool/run
 
 cd $blatherdir
+
+if [[ ! -d $langdir ]]; then
+    mkdir $langdir
+fi
 
 sed -f - $sourcefile > $sentences <<EOFcommands
   /^$/d
