@@ -56,7 +56,7 @@ class Blather:
 
         # if opts.interface is not None:
         #     if opts.interface == "q":
-        #         # import the ui from qt
+        # import the ui from qt
         #         from QtUI import UI
         #     elif opts.interface == "g":
         #         from GtkUI import UI
@@ -66,7 +66,7 @@ class Blather:
 
         #     self.ui = UI(args, opts.continuous)
         #     self.ui.connect("command", self.process_command)
-        #     # can we load the icon resource?
+        # can we load the icon resource?
         #     icon = self.load_resource("icon.png")
         #     if icon:
         #         self.ui.set_icon(icon)
@@ -181,7 +181,11 @@ def parse_config():
 def update_voice_commands():
     sd, nd = parse_config()
     load_lm('\n'.join(nd), False)
-    load_lm('\n'.join(sd), True)
+    if sd:
+        load_lm('\n'.join(sd), True)
+    else:
+        print 'You need to specify awake_command'
+        exit(1)
 
 
 def load_lm(content, syst):
