@@ -54,22 +54,22 @@ class Blather:
         self.recognizer = Recognizer(lang_file, dic_file, sys_l, sys_d, opts.microphone)
         self.recognizer.connect('finished', self.recognizer_finished)
 
-        # if opts.interface is not None:
-        #     if opts.interface == "q":
+        if opts.interface is not None:
+            if opts.interface == "q":
         # import the ui from qt
-        #         from QtUI import UI
-        #     elif opts.interface == "g":
-        #         from GtkUI import UI
-        #     else:
-        #         print "no GUI defined"
-        #         sys.exit()
+                from QtUI import UI
+            elif opts.interface == "g":
+                from GtkUI import UI
+            else:
+                print "no GUI defined"
+                sys.exit()
 
-        #     self.ui = UI(args, opts.continuous)
-        #     self.ui.connect("command", self.process_command)
+            self.ui = UI(args, opts.continuous)
+            self.ui.connect("command", self.process_command)
         # can we load the icon resource?
-        #     icon = self.load_resource("icon.png")
-        #     if icon:
-        #         self.ui.set_icon(icon)
+            icon = self.load_resource("icon.png")
+            if icon:
+                self.ui.set_icon(icon)
 
         if self.opts.history:
             self.history = []
@@ -102,17 +102,17 @@ class Blather:
                 print 'command: ' + t
                 subprocess.call(cmd, shell=True)
                 self.log_history(text)
-                self.recognizer.listen()
+                self.recognizer.suspend()
             else:
-                print "command: no matching command"
+                print "no matching command: " + t
 
             # if there is a UI and we are not continuous listen
-            # if self.ui:
-            #     if not self.continuous_listen:
+            if self.ui:
+                if not self.continuous_listen:
             # stop listening
-            #         self.recognizer.pause()
+                    self.recognizer.pause()
             # let the UI know that there is a finish
-            #     self.ui.finished(t)
+                self.ui.finished(t)
         else:
             if t in self.sys_commands:
                 print 'Listening...'
@@ -246,7 +246,6 @@ if __name__ == "__main__":
         exit(1)
 
     # make our blather object
-    blather = Blather(options)
 
     # init gobject threads
     gobject.threads_init()
@@ -256,6 +255,8 @@ if __name__ == "__main__":
 
     # handle sigint
     signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+    blather = Blather(options)
 
     # run the blather
     blather.run()

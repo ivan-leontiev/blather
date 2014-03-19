@@ -6,6 +6,7 @@ import pygst
 pygst.require('0.10')
 import gst
 import os.path
+import time
 import gobject
 
 # define some global variables
@@ -31,42 +32,50 @@ class Recognizer(gobject.GObject):
         self.__active = False
         # self.commands = {}
         if src:
+            # audio_src = 'alsasrc slave-method=3'
             audio_src = 'alsasrc device="%s"' % (src)
         else:
             audio_src = 'autoaudiosrc'
 
         # build the pipeline
         cmd = audio_src + ' ! audioconvert ! audioresample ! vader name=vad ! pocketsphinx name=asr ! appsink sync=false'
+        # gst.debug_set_default_threshold(gst.LEVEL_DEBUG)
 
-        self.pipeline = gst.parse_launch(cmd)
         self.sys_pipeline = gst.parse_launch(cmd)
 
-        init_pipeline(self.pipeline, lang_file, dic_file, self.result)
         init_pipeline(self.sys_pipeline, sys_l, sys_d, self.result)
 
         # get the Voice Activity DEtectoR
-        self.vad = self.pipeline.get_by_name('vad')
-        self.vad.set_property('auto-threshold', True)
 
         self.sys_vad = self.sys_pipeline.get_by_name('vad')
         self.sys_vad.set_property('auto-threshold', True)
 
+        self.pipeline = gst.parse_launch(cmd)
+        init_pipeline(self.pipeline, lang_file, dic_file, self.result)
+
+        self.vad = self.pipeline.get_by_name('vad')
+        self.vad.set_property('auto-threshold', True)
+
+    def suspend(self):
+        self.vad.set_property('silent', True)
+        # self.pipeline.set_state(gst.STATE_READY)
+        self.listen()
 
     def listen(self):
         self.__active = False
-        self.vad.set_property('silent', True)
-        self.pipeline.set_state(gst.STATE_PAUSED)
+        print 'Waiting for awake_command'
         self.sys_pipeline.set_state(gst.STATE_PLAYING)
 
     def activate_listen(self):
         self.__active = True
         self.sys_vad.set_property('silent', True)
-        self.sys_pipeline.set_state(gst.STATE_PAUSED)
+        self.sys_pipeline.set_state(gst.STATE_NULL)
         self.pipeline.set_state(gst.STATE_PLAYING)
 
     def pause(self):
         self.vad.set_property('silent', True)
-        self.pipeline.set_state(gst.STATE_PAUSED)
+        self.sys_pipeline.set_state(gst.STATE_NULL)
+        self.pipeline.set_state(gst.STATE_NULL)
 
     def result(self, asr, text, uttid):
         # emit finished
