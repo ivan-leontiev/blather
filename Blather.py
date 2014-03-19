@@ -22,7 +22,7 @@ __config_options = {'awake_command', 'debug'}
 
 
 def set_config(dir="~/.config/blather"):
-    global conf_dir, lang_dir, command_file, strings_file, history_file, lang_file, dic_file
+    global conf_dir, lang_dir, command_file, strings_file, history_file, lang_file, dic_file, sys_l, sys_d
 
     conf_dir = os.path.expanduser(dir)
     lang_dir = os.path.join(conf_dir, "language")
@@ -34,6 +34,8 @@ def set_config(dir="~/.config/blather"):
     history_file = os.path.join(conf_dir, "blather.history")
     lang_file = os.path.join(lang_dir, 'lm')
     dic_file = os.path.join(lang_dir, 'dic')
+    sys_l = os.path.join(lang_dir, 'sys.lm')
+    sys_d = os.path.join(lang_dir, 'sys.dic')
 
 set_config()
 
@@ -47,6 +49,7 @@ class Blather:
         self.ui = None
         # keep track of the opts
         self.opts = opts
+        self.__active = False
         ui_continuous_listen = False
         self.continuous_listen = False
         self.read_commands()
@@ -76,6 +79,7 @@ class Blather:
     def read_commands(self):
         sysd, comd = parse_config()
         self.commands = comd
+        self.sys_commands = sysd
 
     def log_history(self, text):
         if self.opts.history:
@@ -94,25 +98,34 @@ class Blather:
     def recognizer_finished(self, recognizer, text):
         t = text.lower()
         # is there a matching command?
-        if self.commands.has_key(t):
-            cmd = self.commands[t]
-            print cmd
-            subprocess.call(cmd, shell=True)
-            self.log_history(text)
+        if self.__active:
+            if t in self.commands:
+                print 'command: ' + t
+                subprocess.call(self.commands[t], shell=True)
+                self.log_history(text)
+                self.__active = False
+                print 'Waiting for awake_command'
+            else:
+                print 'no matching command: ' + t
+            # if there is a UI and we are not continuous listen
+            if self.ui:
+                if not self.continuous_listen:
+                    # stop listening
+                    self.recognizer.pause()
+                # let the UI know that there is a finish
+                self.ui.finished(t)
         else:
-            print "no matching command"
-        # if there is a UI and we are not continuous listen
-        if self.ui:
-            if not self.continuous_listen:
-                # stop listening
-                self.recognizer.pause()
-            # let the UI know that there is a finish
-            self.ui.finished(t)
+            # print t
+            if t in self.sys_commands:
+                self.__active = True
+                subprocess.call(self.sys_commands[t], shell=True)
+                print 'Listening...'
 
     def run(self):
         if self.ui:
             self.ui.run()
         else:
+            print 'Waiting for awake_command'
             blather.recognizer.listen()
 
     def quit(self):
@@ -158,7 +171,8 @@ def parse_config():
             key, value = line[1:].split('=', 1)
             key, value = key.strip(), value.strip()
             if key in __config_options:
-                sdict[key] = value
+                k, v = value.split(':', 1)
+                sdict[k.strip()] = v.strip()
         else:
             key, value = line.split(":", 1)
             ndict[key.strip()] = value.strip()
@@ -169,7 +183,7 @@ def parse_config():
 def update_voice_commands():
     sd, nd = parse_config()
     load_lm('\n'.join(nd), False)
-    # load_lm('n'.join(sd), True)
+    load_lm('\n'.join(sd), True)
 
 
 def load_lm(content, syst):
@@ -186,9 +200,8 @@ def load_lm(content, syst):
     cid = match.group(1)
 
     if syst:
-        pass
-        # urllib.urlretrieve(headers['Location'] + cid + '.lm', sys_l)
-        # urllib.urlretrieve(headers['Location'] + cid + '.dic', sys_d)
+        urllib.urlretrieve(headers['Location'] + cid + '.lm', sys_l)
+        urllib.urlretrieve(headers['Location'] + cid + '.dic', sys_d)
     else:
         urllib.urlretrieve(headers['Location'] + cid + '.lm', lang_file)
         urllib.urlretrieve(headers['Location'] + cid + '.dic', dic_file)
