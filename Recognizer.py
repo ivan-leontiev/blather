@@ -35,11 +35,11 @@ class Recognizer(gobject.GObject):
             # audio_src = 'alsasrc slave-method=3'
             audio_src = 'alsasrc device="%s"' % (src)
         else:
-            audio_src = 'autoaudiosrc'
+            audio_src = 'alsasrc device="default"'
 
         # build the pipeline
         cmd = audio_src + ' ! audioconvert ! audioresample ! vader name=vad ! pocketsphinx name=asr ! appsink sync=false'
-        # gst.debug_set_default_threshold(gst.LEVEL_DEBUG)
+        gst.debug_set_default_threshold(gst.LEVEL_DEBUG)
 
         self.sys_pipeline = gst.parse_launch(cmd)
 
