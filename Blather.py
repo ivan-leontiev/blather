@@ -106,6 +106,7 @@ class Blather:
                 self.__active = False
                 print 'Waiting for awake_command'
             else:
+                subprocess.call('espeak "Whaat?" &', shell=True)
                 print 'no matching command: ' + t
             # if there is a UI and we are not continuous listen
             if self.ui:
@@ -121,6 +122,7 @@ class Blather:
                 subprocess.call(self.sys_commands[t], shell=True)
                 print 'Listening...'
             else:
+                subprocess.call('espeak "Wrong" &', shell=True)
                 print 'no matching command: ' + t
 
     def run(self):
@@ -185,7 +187,11 @@ def parse_config():
 def update_voice_commands():
     sd, nd = parse_config()
     load_lm('\n'.join(nd), False)
-    load_lm('\n'.join(sd), True)
+    if sd:
+        load_lm('\n'.join(sd), True)
+    else:
+        print 'You need to specify awake_command'
+        exit(1)
 
 
 def load_lm(content, syst):
