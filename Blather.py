@@ -120,6 +120,8 @@ class Blather:
                 self.__active = True
                 subprocess.call(self.sys_commands[t], shell=True)
                 print 'Listening...'
+            else:
+                print 'no matching command: ' + t
 
     def run(self):
         if self.ui:
