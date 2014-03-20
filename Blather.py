@@ -16,7 +16,7 @@ from multipartfd import *
 from optparse import OptionParser
 
 
-__config_options = {'awake_command', 'debug'}
+__config_options = {'awake_command'}
 
 # where are the files?
 
