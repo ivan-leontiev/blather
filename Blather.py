@@ -206,7 +206,7 @@ def parse_config():
 def update_voice_commands():
     sd, nd = parse_config()
     load_lm('\n'.join(nd), False)
-    if 'awake_command' in sd['vcmds']:
+    if sd:
         load_lm('\n'.join(sd), True)
     else:
         print 'You need to specify awake_command'
