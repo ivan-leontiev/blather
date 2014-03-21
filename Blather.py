@@ -16,13 +16,16 @@ from multipartfd import *
 from optparse import OptionParser
 
 
-__config_options = {'awake_command'}
+__config_options = {
+    'awake_command': True,
+    'bad_cmd1': False,
+    'bad_cmd2': False
+}
 
 # where are the files?
 
-
 def set_config(dir="~/.config/blather"):
-    global conf_dir, lang_dir, command_file, strings_file, history_file, lang_file, dic_file, sys_l, sys_d
+    global conf_dir, lang_dir, command_file, history_file, lang_file, dic_file, sys_l, sys_d
 
     conf_dir = os.path.expanduser(dir)
     lang_dir = os.path.join(conf_dir, "language")
@@ -30,7 +33,7 @@ def set_config(dir="~/.config/blather"):
     if not os.path.exists(lang_dir):
         os.makedirs(lang_dir)
     command_file = os.path.join(conf_dir, "commands.conf")
-    strings_file = os.path.join(conf_dir, "sentences.corpus")
+    # strings_file = os.path.join(conf_dir, "sentences.corpus")
     history_file = os.path.join(conf_dir, "blather.history")
     lang_file = os.path.join(lang_dir, 'lm')
     dic_file = os.path.join(lang_dir, 'dic')
@@ -101,12 +104,15 @@ class Blather:
         if self.__active:
             if t in self.commands:
                 print 'command: ' + t
+                subprocess.call('espeak "running the %s command"' % t, shell=True)
                 subprocess.call(self.commands[t], shell=True)
                 self.log_history(text)
                 self.__active = False
                 print 'Waiting for awake_command'
             else:
-                subprocess.call('espeak "Whaat?" &', shell=True)
+                # if 'bad_cmd2' in self.sys_commands['events']:
+                #     subprocess.call(self.sys_commands['events']['bad_cmd2'], shell=True)
+                subprocess.call('espeak "Whaat?"', shell=True)
                 print 'no matching command: ' + t
             # if there is a UI and we are not continuous listen
             if self.ui:
@@ -117,12 +123,15 @@ class Blather:
                 self.ui.finished(t)
         else:
             # print t
-            if t in self.sys_commands:
+            if t in self.sys_commands['vcmds']:
                 self.__active = True
-                subprocess.call(self.sys_commands[t], shell=True)
+                subprocess.call(self.sys_commands['vcmds'][t], shell=True)
+                # subprocess.call('espeak "Yes!"', shell=True)
                 print 'Listening...'
             else:
-                subprocess.call('espeak "Wrong" &', shell=True)
+                # if 'bad_cmd1' in self.sys_commands['events']:
+                    # subprocess.call(self.sys_commands['events']['bad_cmd1'], shell=True)
+                subprocess.call('espeak "Wrong"', shell=True)
                 print 'no matching command: ' + t
 
     def run(self):
@@ -162,24 +171,34 @@ class Blather:
 
 
 def parse_config():
-    config = open(command_file, 'r')
     sdict = {}
     ndict = {}
+    sdict['vcmds'] = {}
+    sdict['events'] = {}
 
-    for line in config:
-        line = line.strip()
-        if not len(line) or line[0] == '#':
-            continue
+    with open(command_file, 'r') as config:
+        for line in config:
+            line = line.strip()
 
-        if line[0] == ':':
-            key, value = line[1:].split('=', 1)
-            key, value = key.strip(), value.strip()
-            if key in __config_options:
-                k, v = value.split(':', 1)
-                sdict[k.strip()] = v.strip()
-        else:
-            key, value = line.split(":", 1)
-            ndict[key.strip()] = value.strip()
+            if not len(line) or line[0] == '#':
+                continue
+
+            if line[0] == ':':
+                key, value = line[1:].split('=', 1)
+                key, value = key.strip(), value.strip()
+
+                if key not in __config_options:
+                    continue
+
+                if __config_options[key]:
+                    # system voice command
+                    k, v = value.split(':', 1)
+                    sdict['vcmds'][k.strip()] = v.strip()
+                else:
+                    sdict['events'][key] = value
+            else:
+                key, value = line.split(":", 1)
+                ndict[key.strip()] = value.strip()
 
     return (sdict, ndict)
 
@@ -187,7 +206,7 @@ def parse_config():
 def update_voice_commands():
     sd, nd = parse_config()
     load_lm('\n'.join(nd), False)
-    if sd:
+    if 'awake_command' in sd['vcmds']:
         load_lm('\n'.join(sd), True)
     else:
         print 'You need to specify awake_command'
