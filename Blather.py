@@ -207,7 +207,7 @@ def update_voice_commands():
     cmds = {}
     sd, nd = parse_config()
     cmds.update(nd)
-    cmds.update(sd)
+    cmds.update(sd['vcmds'])
     if 'vcmds' not in sd:
         print 'You need to specify awake_command'
 
