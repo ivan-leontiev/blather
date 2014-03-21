@@ -25,7 +25,7 @@ __config_options = {
 # where are the files?
 
 def set_config(dir="~/.config/blather"):
-    global conf_dir, lang_dir, command_file, history_file, lang_file, dic_file, sys_l, sys_d
+    global conf_dir, lang_dir, command_file, history_file, lang_file, dic_file
 
     conf_dir = os.path.expanduser(dir)
     lang_dir = os.path.join(conf_dir, "language")
@@ -37,8 +37,8 @@ def set_config(dir="~/.config/blather"):
     history_file = os.path.join(conf_dir, "blather.history")
     lang_file = os.path.join(lang_dir, 'lm')
     dic_file = os.path.join(lang_dir, 'dic')
-    sys_l = os.path.join(lang_dir, 'sys.lm')
-    sys_d = os.path.join(lang_dir, 'sys.dic')
+    # sys_l = os.path.join(lang_dir, 'sys.lm')
+    # sys_d = os.path.join(lang_dir, 'sys.dic')
 
 set_config()
 
@@ -204,16 +204,17 @@ def parse_config():
 
 
 def update_voice_commands():
+    cmds = {}
     sd, nd = parse_config()
-    load_lm('\n'.join(nd), False)
-    if sd:
-        load_lm('\n'.join(sd), True)
-    else:
+    cmds.update(nd)
+    cmds.update(sd)
+    if 'vcmds' not in sd:
         print 'You need to specify awake_command'
-        exit(1)
+
+    load_lm('\n'.join(cmds))
 
 
-def load_lm(content, syst):
+def load_lm(content):
     lmhost = 'www.speech.cs.cmu.edu'
     lmselector = '/cgi-bin/tools/lmtool/run'
     fields = [('formtype', 'simple')]
@@ -226,12 +227,12 @@ def load_lm(content, syst):
     match = bn_rgx.search(page)
     cid = match.group(1)
 
-    if syst:
-        urllib.urlretrieve(headers['Location'] + cid + '.lm', sys_l)
-        urllib.urlretrieve(headers['Location'] + cid + '.dic', sys_d)
-    else:
-        urllib.urlretrieve(headers['Location'] + cid + '.lm', lang_file)
-        urllib.urlretrieve(headers['Location'] + cid + '.dic', dic_file)
+    # if syst:
+    urllib.urlretrieve(headers['Location'] + cid + '.lm', lang_file)
+    urllib.urlretrieve(headers['Location'] + cid + '.dic', dic_file)
+    # else:
+    #     urllib.urlretrieve(headers['Location'] + cid + '.lm', lang_file)
+    #     urllib.urlretrieve(headers['Location'] + cid + '.dic', dic_file)
 
 
 if __name__ == "__main__":
