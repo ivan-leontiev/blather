@@ -193,12 +193,12 @@ def parse_config():
                 if __config_options[key]:
                     # system voice command
                     k, v = value.split(':', 1)
-                    sdict['vcmds'][k.strip()] = v.strip()
+                    sdict['vcmds'][k.strip().lower()] = v.strip()
                 else:
                     sdict['events'][key] = value
             else:
                 key, value = line.split(":", 1)
-                ndict[key.strip()] = value.strip()
+                ndict[key.strip().lower()] = value.strip()
 
     return (sdict, ndict)
 
@@ -227,12 +227,8 @@ def load_lm(content):
     match = bn_rgx.search(page)
     cid = match.group(1)
 
-    # if syst:
     urllib.urlretrieve(headers['Location'] + cid + '.lm', lang_file)
     urllib.urlretrieve(headers['Location'] + cid + '.dic', dic_file)
-    # else:
-    #     urllib.urlretrieve(headers['Location'] + cid + '.lm', lang_file)
-    #     urllib.urlretrieve(headers['Location'] + cid + '.dic', dic_file)
 
 
 if __name__ == "__main__":
