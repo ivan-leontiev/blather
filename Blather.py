@@ -104,15 +104,15 @@ class Blather:
         if self.__active:
             if t in self.commands:
                 print 'command: ' + t
-                subprocess.call('espeak "running the %s command"' % t, shell=True)
+                # subprocess.call('espeak "running the %s command"' % t, shell=True)
                 subprocess.call(self.commands[t], shell=True)
                 self.log_history(text)
                 self.__active = False
                 print 'Waiting for awake_command'
             else:
-                # if 'bad_cmd2' in self.sys_commands['events']:
-                #     subprocess.call(self.sys_commands['events']['bad_cmd2'], shell=True)
-                subprocess.call('espeak "Whaat?"', shell=True)
+                if 'bad_cmd2' in self.sys_commands['events']:
+                    subprocess.call(self.sys_commands['events']['bad_cmd2'], shell=True)
+                # subprocess.call('espeak "Whaat?"', shell=True)
                 print 'no matching command: ' + t
             # if there is a UI and we are not continuous listen
             if self.ui:
@@ -129,9 +129,8 @@ class Blather:
                 # subprocess.call('espeak "Yes!"', shell=True)
                 print 'Listening...'
             else:
-                # if 'bad_cmd1' in self.sys_commands['events']:
-                    # subprocess.call(self.sys_commands['events']['bad_cmd1'], shell=True)
-                subprocess.call('espeak "Wrong"', shell=True)
+                if 'bad_cmd1' in self.sys_commands['events']:
+                    subprocess.call(self.sys_commands['events']['bad_cmd1'], shell=True)
                 print 'no matching command: ' + t
 
     def run(self):
