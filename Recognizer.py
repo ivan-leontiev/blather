@@ -113,7 +113,7 @@ class Recognizer(gobject.GObject):
         req = urllib2.Request(url, audio, header)
 
         try:
-            resp = urllib2.urlopen(req, timeout=5)
+            resp = urllib2.urlopen(req, timeout=30)
         except urllib2.URLError:
             print 'Problems with internet connection.'
             return None
