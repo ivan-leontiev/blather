@@ -125,14 +125,19 @@ class Blather:
             answer = resp.pods[1].text
             if not answer:
                 print 'No answer for that'
+                self.say('no response')
             else:
                 print answer
-                if 'voice_cmd' in self.cmds['events']:
-                    say(self.cmds['events']['voice_cmd'], answer)
-                else:
-                    print 'You need to specify voice command alias.'
+                self.say(answer)
         else:
             print 'Try again. :('
+            self.say('no response')
+
+    def say(self, text):
+        try:
+            say(self.cmds['events']['voice_cmd'], text)
+        except KeyError:
+            print 'You need to specify :voice_cmd.'
 
     def run(self):
         if self.ui:
