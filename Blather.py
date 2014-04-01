@@ -170,7 +170,7 @@ class Blather:
 
 
 def say(text):
-    call('echo "%s" | festival --tts --pipe' % text, shell=True)
+    call('echo "%s" | tr "|" " " | festival --tts --pipe' % text, shell=True)
 
 
 def parse_config():
