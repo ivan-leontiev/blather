@@ -130,7 +130,6 @@ class Blather:
         else:
             print 'Try again. :('
 
-
     def run(self):
         if self.ui:
             self.ui.run()
@@ -171,7 +170,7 @@ class Blather:
 
 
 def say(text):
-    call('espeak "%s"' % text, shell=True)
+    call('echo "%s" | festival --tts --pipe' % text, shell=True)
 
 
 def parse_config():
