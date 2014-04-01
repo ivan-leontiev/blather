@@ -21,7 +21,8 @@ __opts__ = {
     'awake_command': True,
     'start_search': True,
     'bad_cmd1': False,
-    'bad_cmd2': False
+    'bad_cmd2': False,
+    'voice_cmd': False
 }
 
 
@@ -126,7 +127,10 @@ class Blather:
                 print 'No answer for that'
             else:
                 print answer
-                say(answer)
+                if 'voice_cmd' in self.cmds['events']:
+                    say(self.cmds['events']['voice_cmd'], answer)
+                else:
+                    print 'You need to specify voice command alias.'
         else:
             print 'Try again. :('
 
@@ -169,8 +173,8 @@ class Blather:
         return False
 
 
-def say(text):
-    call('echo "%s" | tr "|" " " | festival --tts --pipe' % text, shell=True)
+def say(alias, text):
+    call(alias % text, shell=True)
 
 
 def parse_config():
