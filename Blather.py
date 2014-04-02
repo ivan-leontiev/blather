@@ -7,40 +7,38 @@ import sys
 import signal
 import gobject
 import os.path
-import subprocess
 import re
 import urllib
 import functools
+import wolframalpha
 
 from multipartfd import *
 from optparse import OptionParser
+from subprocess import call
 
 
-__config_options = {
+__opts__ = {
     'awake_command': True,
+    'start_search': True,
     'bad_cmd1': False,
-    'bad_cmd2': False
+    'bad_cmd2': False,
+    'voice_cmd': False
 }
 
-# where are the files?
 
 def set_config(dir="~/.config/blather"):
     global conf_dir, lang_dir, command_file, history_file, lang_file, dic_file
 
     conf_dir = os.path.expanduser(dir)
     lang_dir = os.path.join(conf_dir, "language")
-    # make the lang_dir if it doesn't exist
+
     if not os.path.exists(lang_dir):
         os.makedirs(lang_dir)
+
     command_file = os.path.join(conf_dir, "commands.conf")
-    # strings_file = os.path.join(conf_dir, "sentences.corpus")
     history_file = os.path.join(conf_dir, "blather.history")
     lang_file = os.path.join(lang_dir, 'lm')
     dic_file = os.path.join(lang_dir, 'dic')
-    # sys_l = os.path.join(lang_dir, 'sys.lm')
-    # sys_d = os.path.join(lang_dir, 'sys.dic')
-
-set_config()
 
 
 class Blather:
@@ -55,9 +53,12 @@ class Blather:
         self.__active = False
         ui_continuous_listen = False
         self.continuous_listen = False
-        self.read_commands()
+
+        self.cmds = parse_config()
+
         self.recognizer = Recognizer(lang_file, dic_file, opts.microphone)
-        self.recognizer.connect('finished', self.recognizer_finished)
+        self.recognizer.connect('finished_cmd', self.recognizer_finished)
+        self.recognizer.connect('finished_gsr', self.wolfram_search)
 
         if opts.interface is not None:
             if opts.interface == "q":
@@ -76,68 +77,72 @@ class Blather:
             if icon:
                 self.ui.set_icon(icon)
 
-        if self.opts.history:
-            self.history = []
+        self.waclient = wolframalpha.Client(opts.api_key)
 
-    def read_commands(self):
-        sysd, comd = parse_config()
-        self.commands = comd
-        self.sys_commands = sysd
-
-    def log_history(self, text):
-        if self.opts.history:
-            self.history.append(text)
-            if len(self.history) > self.opts.history:
-            # pop off the first item
-                self.history.pop(0)
-
-            # open and truncate the blather history file
-            hfile = open(history_file, "w")
-            for line in self.history:
-                hfile.write(line + "\n")
-            # close the  file
-            hfile.close()
+        # if self.opts.history:
+        #     self.history = []
 
     def recognizer_finished(self, recognizer, text):
         t = text.lower()
-        # is there a matching command?
+
         if self.__active:
-            if t in self.commands:
+            if t in self.cmds['vcmds']:
                 print 'command: ' + t
-                # subprocess.call('espeak "running the %s command"' % t, shell=True)
-                subprocess.call(self.commands[t], shell=True)
-                self.log_history(text)
+                call(self.cmds['vcmds'][t], shell=True)
+                # self.log_history(text)
                 self.__active = False
                 print 'Waiting for awake_command'
+
             else:
-                if 'bad_cmd2' in self.sys_commands['events']:
-                    subprocess.call(self.sys_commands['events']['bad_cmd2'], shell=True)
-                # subprocess.call('espeak "Whaat?"', shell=True)
+                if 'bad_cmd2' in self.cmds['events']:
+                    call(self.cmds['events']['bad_cmd2'], shell=True)
                 print 'no matching command: ' + t
+
             # if there is a UI and we are not continuous listen
             if self.ui:
                 if not self.continuous_listen:
-                    # stop listening
                     self.recognizer.pause()
                 # let the UI know that there is a finish
                 self.ui.finished(t)
+
         else:
-            # print t
-            if t in self.sys_commands['vcmds']:
+            if t in self.cmds['awake_command']:
                 self.__active = True
-                subprocess.call(self.sys_commands['vcmds'][t], shell=True)
-                # subprocess.call('espeak "Yes!"', shell=True)
+                call(self.cmds['awake_command'][t], shell=True)
                 print 'Listening...'
-            else:
-                if 'bad_cmd1' in self.sys_commands['events']:
-                    subprocess.call(self.sys_commands['events']['bad_cmd1'], shell=True)
+
+            elif t in self.cmds['start_search']:
+                call(self.cmds['start_search'][t], shell=True)
+                self.v_search()
+
+            elif 'bad_cmd1' in self.cmds['events']:
+                call(self.cmds['events']['bad_cmd1'], shell=True)
                 print 'no matching command: ' + t
+
+    def wolfram_search(self, recognizer, text):
+        resp = self.waclient.query(text)
+        if len(resp.pods) > 0:
+            answer = resp.pods[1].text
+            if not answer:
+                print 'No answer for that'
+                self.say('no response')
+            else:
+                print answer
+                self.say(answer)
+        else:
+            print 'Try again. :('
+            self.say('no response')
+
+    def say(self, text):
+        try:
+            say(self.cmds['events']['voice_cmd'], text)
+        except KeyError:
+            print '[Error] You need to specify :voice_cmd.'
 
     def run(self):
         if self.ui:
             self.ui.run()
         else:
-            print 'Waiting for awake_command'
             blather.recognizer.listen()
 
     def quit(self):
@@ -158,6 +163,10 @@ class Blather:
         elif command == "quit":
             self.quit()
 
+    def v_search(self):
+        print 'Listening...'
+        self.recognizer.switch_to('src1')
+
     def load_resource(self, string):
         local_data = os.path.join(os.path.dirname(__file__), 'data')
         paths = ["/usr/share/blather/", "/usr/local/share/blather", local_data]
@@ -169,9 +178,12 @@ class Blather:
         return False
 
 
+def say(alias, text):
+    call(alias % text, shell=True)
+
+
 def parse_config():
     sdict = {}
-    ndict = {}
     sdict['vcmds'] = {}
     sdict['events'] = {}
 
@@ -186,31 +198,37 @@ def parse_config():
                 key, value = line[1:].split('=', 1)
                 key, value = key.strip(), value.strip()
 
-                if key not in __config_options:
+                if key not in __opts__:
                     continue
 
-                if __config_options[key]:
-                    # system voice command
+                if __opts__[key]:
                     k, v = value.split(':', 1)
-                    sdict['vcmds'][k.strip().lower()] = v.strip()
+                    sdict[key] = dict([(k.strip().lower(), v.strip())])
                 else:
                     sdict['events'][key] = value
             else:
                 key, value = line.split(":", 1)
-                ndict[key.strip().lower()] = value.strip()
+                sdict['vcmds'][key.strip().lower()] = value.strip()
 
-    return (sdict, ndict)
+    mis = {k for k, v in __opts__.items() if v} - set(sdict)
+    if mis:
+        print '[Error] You need to specify: \n\t' + '\n\t'.join(mis)
+        exit(1)
+
+    return sdict
 
 
 def update_voice_commands():
     cmds = {}
-    sd, nd = parse_config()
-    cmds.update(nd)
+    sd = parse_config()
     cmds.update(sd['vcmds'])
-    if 'vcmds' not in sd:
-        print 'You need to specify awake_command'
-
-    load_lm('\n'.join(cmds))
+    for opt in __opts__:
+        if __opts__[opt] and opt in sd:
+            cmds.update(sd[opt])
+    try:
+        load_lm('\n'.join(cmds))
+    except:
+        print '[Error] Problems with internet connection'
 
 
 def load_lm(content):
@@ -241,12 +259,15 @@ if __name__ == "__main__":
     parser.add_option("-c", "--continuous",
                       action="store_true", dest="continuous", default=False,
                       help="starts interface with 'continuous' listen enabled")
-    parser.add_option("-H", "--history", type="int",
-                      action="store", dest="history",
-                      help="number of commands to store in history file")
+    # parser.add_option("-H", "--history", type="int",
+                      # action="store", dest="history",
+                      # help="number of commands to store in history file")
     parser.add_option("-m", "--microphone", type="string",
                       action="store", dest="microphone", default=None,
                       help="Audio input device to use (if other than system default)")
+    parser.add_option("-a", "--api-key", type="string",
+                      action="store", dest="api_key", default=None,
+                      help="Wolframalpha API KEY")
     parser.add_option("-u", "--update",
                       action="store_true", dest="update", default=False,
                       help="Update list of voice commands")
@@ -255,6 +276,8 @@ if __name__ == "__main__":
 
     if options.config is not None:
         set_config(options.config)
+    else:
+        set_config()
 
     if options.update:
         update_voice_commands()
@@ -262,7 +285,7 @@ if __name__ == "__main__":
 
     if not functools.reduce(bool.__and__, map(os.path.exists,
                                               [lang_file, dic_file])):
-        print 'You should call with --update firstly'
+        print '[Error] You should call with --update firstly'
         exit(1)
 
     # make our blather object
