@@ -32,6 +32,8 @@ class Recognizer(gobject.GObject):
         # build the pipeline
         # cmd = audio_src + ' ! audioconvert ! audioresample ! vader name=vad ! pocketsphinx name=asr ! appsink sync=false'
         self.pipeline = gst.parse_launch(audio_src +
+            # 'udpsrc port=5000'
+            # ' ! flacdec'
             ' ! audioconvert'
             ' ! audioresample'
             # ' ! audioamplify amplification=1.2'
@@ -114,12 +116,14 @@ class Recognizer(gobject.GObject):
 
         try:
             resp = urllib2.urlopen(req, timeout=30)
+            js_data = json.loads(resp.read())
         except urllib2.URLError:
-            print 'Problems with internet connection.'
+            print '[Warning] Problems with internet connection.'
+            return None
+        except ValueError:
+            print '[Warning] Something went wrong.'
             return None
 
-
-        js_data = json.loads(resp.read())
         if js_data['status'] == 0:
             return js_data['hypotheses'][0]['utterance']
         else:

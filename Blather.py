@@ -137,7 +137,7 @@ class Blather:
         try:
             say(self.cmds['events']['voice_cmd'], text)
         except KeyError:
-            print 'You need to specify :voice_cmd.'
+            print '[Error] You need to specify :voice_cmd.'
 
     def run(self):
         if self.ui:
@@ -212,7 +212,7 @@ def parse_config():
 
     mis = {k for k, v in __opts__.items() if v} - set(sdict)
     if mis:
-        print 'You need to specify: \n\t' + '\n\t'.join(mis)
+        print '[Error] You need to specify: \n\t' + '\n\t'.join(mis)
         exit(1)
 
     return sdict
@@ -228,7 +228,7 @@ def update_voice_commands():
     try:
         load_lm('\n'.join(cmds))
     except:
-        print 'Problems with internet connection'
+        print '[Error] Problems with internet connection'
 
 
 def load_lm(content):
@@ -285,7 +285,7 @@ if __name__ == "__main__":
 
     if not functools.reduce(bool.__and__, map(os.path.exists,
                                               [lang_file, dic_file])):
-        print 'You should call with --update firstly'
+        print '[Error] You should call with --update firstly'
         exit(1)
 
     # make our blather object
