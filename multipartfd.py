@@ -10,6 +10,7 @@ def post_multipart(host, selector, fields, files):
     content_type, body = encode_multipart_formdata(fields, files)
     h = httplib.HTTP(host)
     h.putrequest('POST', selector)
+    h.putheader('host', host)
     h.putheader('content-type', content_type)
     h.putheader('content-length', str(len(body)))
     h.endheaders()

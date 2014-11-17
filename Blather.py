@@ -244,8 +244,8 @@ def load_lm(content):
     match = bn_rgx.search(page)
     cid = match.group(1)
 
-    urllib.urlretrieve(headers['Location'] + cid + '.lm', lang_file)
-    urllib.urlretrieve(headers['Location'] + cid + '.dic', dic_file)
+    urllib.urlretrieve(headers['Location'] + '/' + cid + '.lm', lang_file)
+    urllib.urlretrieve(headers['Location'] + '/' + cid + '.dic', dic_file)
 
 
 if __name__ == "__main__":
